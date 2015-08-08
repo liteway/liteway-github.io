@@ -77,7 +77,7 @@
     <div class="entry">
       
         <p>CVE-2012-5076一个是Java API层的漏洞，通过利用缺陷API间接调用Bootstrap Classloader来加载自定义的提权类，从而绕过JRE Sandbox的限制。该漏洞影响范围是JRE7U0-JRE7U7。<a id="more"></a></p>
-<p>CVE-2012-5076和<a href="http://www.ninehackers.com/2014/09/14/java_cve_2012_4681" target="_blank" rel="external">CVE-2012-4681</a>都是API层的漏洞，都是通过将SecurityManager置空来达到绕过Sandbox的目的。但不同的是，<a href="http://www.ninehackers.com/2014/09/14/java_cve_2012_4681" target="_blank" rel="external">CVE-2012-4681</a>通过构造一个可以执行setSecurityManager操作的上下文(具有AllPermission的AccessControlContext对象)，而CVE-2012-5076则是利用Bootstrap Classloader的特权来加载自定义的提权类，在提权类中执行setSecurityManager的操作。</p>
+<p>CVE-2012-5076和CVE-2012-4681都是API层的漏洞，都是通过将SecurityManager置空来达到绕过Sandbox的目的。但不同的是，CVE-2012-4681通过构造一个可以执行setSecurityManager操作的上下文(具有AllPermission的AccessControlContext对象)，而CVE-2012-5076则是利用Bootstrap Classloader的特权来加载自定义的提权类，在提权类中执行setSecurityManager的操作。</p>
 <h2 id="缺陷API">缺陷API</h2><p>该漏洞涉及的缺陷API有3个：</p>
 <ul>
 <li>com.sun.org.glassfish.gmbal.ManagedObjectManagerFactory</li>
