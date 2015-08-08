@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>从你的全世界路过之Metasploit | 骆驼的乌托邦</title>
+  <meta name="author" content="liteway">
+  
+  <meta name="description" content="工欲善其事，必先利其器。对于安全研究者来说，Metasploit是一款渗透测试的利器，正如其官方宣称的那样（World’s most used penetration testing software），它的锋利足以承载它的梦想！本文将以一个IE Exploit的例子来带你路过Metasploit的世界。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="从你的全世界路过之Metasploit"/>
+  <meta property="og:site_name" content="骆驼的乌托邦"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.ico" rel="icon" type="image/x-ico">
+  <link rel="alternate" href="/atom.xml" title="骆驼的乌托邦" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">骆驼的乌托邦</a></h1>
+  <h2 class="subtitle"></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+    <div class="gallery">
+  <div class="photoset">
+    
+      <img src="">
+    
+  </div>
+  <div class="control">
+    <div class="prev"></div>
+    <div class="next"></div>
+  </div>
+</div>
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-08-28T15:26:26.000Z"><a href="/2014/08/28/metasploit_usage/">2014-08-28</a></time>
+      
+      
+  
+    <h1 class="title">从你的全世界路过之Metasploit</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>工欲善其事，必先利其器。对于安全研究者来说，Metasploit是一款渗透测试的利器，正如其官方宣称的那样（World’s most used penetration testing software），它的锋利足以承载它的梦想！本文将以一个IE Exploit的例子来带你路过Metasploit的世界。<a id="more"></a></p>
+<h2 id="Metasploit是什么">Metasploit是什么</h2><p>Metasploit是一个模拟作战平台，平台之上提供了从侦查（漏洞扫描）到攻击（Exploit），再到屠城（Payload）等一系列的武器装备，当然这些装备并不全是免费的，可以根据需求在<a href="http://www.metasploit.com/" target="_blank" rel="external">Metasploit官网</a>上购买不同等级的装备。对于一般的研究者来说，其提供的开源的<strong>Metasploit Framework</strong>足以。</p>
+<p>Metasploit Framework（MSF）的最大贡献在于将漏洞利用技术从传统的手工作坊推进到现代化工业生产，用户可以根据需求自由组装合适自己的武器装备。MSF中收集了许多不同种类的Exploit和Payload，每种Exploit有多种Payload可以选择，就像每种枪都可以选择不同威力的子弹一样。</p>
+<p>本文以演习的标准选择一个空包弹，在IE Exploit成功后弹出计算器，以示在敌方阵地插上小红旗。</p>
+<h2 id="Metasploit环境准备">Metasploit环境准备</h2><p>在<a href="http://www.rapid7.com/products/metasploit/download.jsp" target="_blank" rel="external">这里</a>可以选择下载Windows版或者Linux版的Metasploit Framework，运行二进制安装文件可以直接在界面中进行配置。</p>
+<p>本文实验环境：<br>服务端：CentOS Metasploit Framework(Linux版)<br>执行命令：</p>
+<ol>
+<li><strong>cd /opt/metasploit/apps/pro/msf3/</strong></li>
+<li><strong>msfconsole</strong> （每次都会看到不同的酷炫Logo，逗比的Metasploit Developer）<br><img src="/img/metasploit_usage/msf_main.jpg" alt=""><br>在msf3/modules目录下包含了MSF中所用到的各种exploit、payload以及一些辅助模块</li>
+</ol>
+<p>客户端：选择靶机中的战斗机 WinXP-SP3 + IE8</p>
+<h2 id="Metasploit命令介绍">Metasploit命令介绍</h2><p>在msfconsole中提供了大量的命令，下面列出了一些常用的命令（MSF中的命令区分大小写）：</p>
+<blockquote>
+<p><strong>管理命令</strong>：<br>  <strong>help [cmd]</strong>: 显示命令的帮助信息<br>  [如：help search 查看search命令的用法]<br>  <strong>search [cond]</strong>: 根据name或cve等信息查找的module<br>  [如：search name:ms13 查找微软2013年的Exploit]<br>  <strong>info [module]</strong>: 显示指定module的所有信息<br>  [如：info exploit/windows/browser/ms13_080_cdisplaypointer]<br>  <strong>jobs [options]</strong>: 管理后台运行的所有module的状态<br>  [如：jobs -K 终止所有运行的job，<br>       jobs -l 列出所有运行的job信息]<br>  <strong>kill [job_id]</strong>: 结束指定id的job，常用jobs -l先列出所有job id，再kill指定job<br>  <strong>sessions [options]</strong>: 管理当前exploit执行成功后开启的session(shell, meterpreter, etc)<br>  [如：sessions -K 终止当前连接的所有session，<br>       sessions -l 列出当前活着的session信息，<br>       sessions -i id 与当前session id进行交互]<br>  <strong>exit</strong>: 退出msfconsole</p>
+<p><strong>配置命令</strong>：<br>  <strong>use [module]</strong>: 选择某个exploit module，切换到该module的上下文<br>  [如：use exploit/windows/browser/ms13_080_cdisplaypointer]<br>  <strong>back</strong>: 从当前上下文返回<br>  <strong>set [option] [value]</strong>: 设置指定option的值<br>  <strong>unset [option]</strong>: 取消当前option的设定<br>  <strong>setg [option] [value]</strong>: 设置指定option的全局值，省去了重复设置的麻烦<br>  <strong>unsetg [option]</strong>: 取消当前option的全局设定<br>  [如：set SRVHOST 192.168.1.2 设置服务器端IP地址]<br>  <strong>show [argument]</strong>: 显示指定参数的信息<br>  [如：show options 显示当前设置的所有信息，<br>       show exploits 显示MSF中所有的exploit，<br>       show payloads 显示当前可用的所有payload，<br>       show targets 显示当前可攻击的目标平台]<br>  <strong>exploit</strong>: 激活当前配置的exploit module，主动发起攻击或被动等待连接<br>  <strong>exploit -j</strong>: 激活当前exploit并进入后台运行<br>  <strong>resource [rc_file]</strong>: 用户可以将所有的配置命令写到一个配置文件中(test.rc)，执行此命令则会自动加载所有配置<br>  [在msfconsole后指定rc文件作为参数(msfconsole -r test.rc)也可以自动加载配置文件]</p>
+</blockquote>
+<h2 id="Metasploit攻击实战">Metasploit攻击实战</h2><p>Metasploit Server端配置：<br><img src="/img/metasploit_usage/msf_server.jpg" alt=""></p>
+<p>客户端中招弹出计算器：<br><img src="/img/metasploit_usage/msf_client.jpg" alt=""></p>
+<p>至此，本文对Metasploit的介绍已经结束，管中窥豹，略见一斑，有兴趣的用户可以进一步探寻更高端的meterpreter的世界！</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/渗透测试/">渗透测试</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Metasploit/">Metasploit</a>
+  </div>
+
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:github.com/liteway/liteway.github.io">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Python/">Python</a><small>1</small></li>
+  
+    <li><a href="/categories/渗透测试/">渗透测试</a><small>1</small></li>
+  
+    <li><a href="/categories/漏洞分析/">漏洞分析</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">最新文章</h3>
+  <ul class="entry">
+    
+      <li>
+        <a href="/2015/06/20/py_httpclient/">Python HTTP Client Lib</a>
+      </li>
+    
+      <li>
+        <a href="/2015/04/20/ie_cve_2012_4969/">IE UAF漏洞分析之CVE-2012-4969</a>
+      </li>
+    
+      <li>
+        <a href="/2014/11/30/java_exploit_type_confusion/">Watching Type Confusion Attacks from Java Exploits</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/18/java_cve_2012_5076/">Java Exploit分析之CVE-2012-5076</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/14/java_cve_2012_4681/">Java Exploit分析之CVE-2012-4681</a>
+      </li>
+    
+  </ul>
+</div>
+
+
+  
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/IE-CVE/" style="font-size: 10px;">IE CVE</a> <a href="/tags/Java-CVE/" style="font-size: 20px;">Java CVE</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/UAF/" style="font-size: 10px;">UAF</a> <a href="/tags/python/" style="font-size: 10px;">python</a>
+  </div>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2015 liteway
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

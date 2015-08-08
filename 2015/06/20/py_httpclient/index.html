@@ -1,0 +1,201 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Python HTTP Client Lib | 骆驼的乌托邦</title>
+  <meta name="author" content="liteway">
+  
+  <meta name="description" content="使用Python中的HTTP Client库来爬取网页的访问十分方便，但众多的库可能让使用者感觉杂乱无章，本文总结了Python中几个常见HTTP库的使用方式，以便根据实际需求来选择合适的库。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Python HTTP Client Lib"/>
+  <meta property="og:site_name" content="骆驼的乌托邦"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.ico" rel="icon" type="image/x-ico">
+  <link rel="alternate" href="/atom.xml" title="骆驼的乌托邦" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">骆驼的乌托邦</a></h1>
+  <h2 class="subtitle"></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+    <div class="gallery">
+  <div class="photoset">
+    
+      <img src="">
+    
+  </div>
+  <div class="control">
+    <div class="prev"></div>
+    <div class="next"></div>
+  </div>
+</div>
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2015-06-20T15:00:00.000Z"><a href="/2015/06/20/py_httpclient/">2015-06-20</a></time>
+      
+      
+  
+    <h1 class="title">Python HTTP Client Lib</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>使用Python中的HTTP Client库来爬取网页的访问十分方便，但众多的库可能让使用者感觉杂乱无章，本文总结了Python中几个常见HTTP库的使用方式，以便根据实际需求来选择合适的库。<a id="more"></a></p>
+<h2 id="urllib">urllib</h2><figure class="highlight lasso"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">urllib<span class="built_in">.</span>urlopen(url, <span class="built_in">data</span><span class="subst">=</span><span class="literal">None</span>, proxies<span class="subst">=</span><span class="literal">None</span>) 等于：</span><br><span class="line">    opener <span class="subst">=</span> urllib<span class="built_in">.</span>FancyURLopener(proxies<span class="subst">=</span><span class="literal">None</span>)</span><br><span class="line">    opener<span class="built_in">.</span>open(url, <span class="built_in">data</span><span class="subst">=</span><span class="literal">None</span>)</span><br><span class="line">FancyURLopener继承自URLopener，实现了一些异常处理。</span><br><span class="line">proxies <span class="subst">=</span> &#123;<span class="string">'http'</span>: <span class="string">'http://proxy.example.com:8080/'</span>&#125;</span><br><span class="line"></span><br><span class="line">GET Method:</span><br><span class="line"><span class="keyword">params</span> <span class="subst">=</span> urllib<span class="built_in">.</span>urlencode(&#123;<span class="string">'arg1'</span>: arg1_value, <span class="string">'arg2'</span>: arg2_value&#125;)</span><br><span class="line">f <span class="subst">=</span> urllib<span class="built_in">.</span>urlopen(<span class="string">"http://www.xxx.com/query?%s"</span> <span class="subst">%</span><span class="keyword">params</span>)</span><br><span class="line"></span><br><span class="line">POST Method:</span><br><span class="line"><span class="keyword">params</span> <span class="subst">=</span> urllib<span class="built_in">.</span>urlencode(&#123;<span class="string">'arg1'</span>: arg1_value, <span class="string">'arg2'</span>: arg2_value&#125;)</span><br><span class="line">f <span class="subst">=</span> urllib<span class="built_in">.</span>urlopen(<span class="string">"http://www.xxx.com"</span>, <span class="keyword">params</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">Return</span> Value:</span><br><span class="line">返回值f可以作为类似文件句柄来处理</span><br><span class="line">f<span class="built_in">.</span>read() 获取页面内容</span><br><span class="line">f<span class="built_in">.</span>getcode() 获取HTTP响应码</span><br><span class="line">f<span class="built_in">.</span>getinfo() 获取url的meta信息</span><br><span class="line">f<span class="built_in">.</span>geturl() 获取最终的url，由于urlopen会自动处理重定向，可以与原始url比较来判断是否有Redirect动作</span><br></pre></td></tr></table></figure>
+<p>urllib可以使用urlencode来编码发送的数据，但不允许使用自定义的request header。</p>
+<h2 id="urllib2">urllib2</h2><figure class="highlight fortran"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">urllib2.urlopen(url, <span class="type">data</span>=<span class="type">None</span>, timeout=<span class="keyword">default</span>) 等于：</span><br><span class="line">    opener = urllib2.build_opener(*handler) -&gt; urllib2.OpenerDirector()</span><br><span class="line">    opener.open(url, <span class="type">data</span>=<span class="type">None</span>, timeout=<span class="keyword">default</span>)</span><br><span class="line">    or</span><br><span class="line">    opener = urllib2.build_opener(*handler)</span><br><span class="line">    urllib2.install_opener(opener) #将修改默认的opener全局变量</span><br><span class="line">    urllib2.open(url, <span class="type">data</span>=<span class="type">None</span>, timeout=<span class="keyword">default</span>)</span><br><span class="line"></span><br><span class="line">可以通过构造Request对象来使用自定义header，例如伪造User-Agent，设置Content-<span class="keyword">Type</span>等；<span class="type">data</span>需要用urllib.urlencode来编码。 </span><br><span class="line">常见的Content-<span class="keyword">Type</span>: application/xml, application/json, application/x-www-<span class="keyword">form</span>-urlencoded(web <span class="keyword">form</span>)</span><br><span class="line">req = urllib2.Request(url, <span class="type">data</span>=<span class="type">None</span>, headers=&#123;&#125;)</span><br><span class="line">f = urllib2.urlopen(req)</span><br><span class="line">返回值与urllib类型一致</span><br><span class="line"></span><br><span class="line"><span class="keyword">Use</span> Proxy:</span><br><span class="line">proxies = &#123;<span class="string">'http'</span>: <span class="string">'http://proxy.example.com:8080/'</span>&#125;</span><br><span class="line">proxy_handler = urllib2.ProxyHandler(proxies=<span class="type">None</span>) #proxies为&#123;&#125;则不设置proxy</span><br><span class="line">opener = urllib2.build_opener(proxy_handler)</span><br><span class="line">urllib2.install_opener(opener)</span><br><span class="line"></span><br><span class="line"><span class="keyword">Use</span> Timeout:</span><br><span class="line">没有设置timeout的接口时，可以通过socket的timeout来设置</span><br><span class="line"><span class="keyword">import</span> socket</span><br><span class="line">socket.setdefaulttimeout(seconds)</span><br><span class="line"></span><br><span class="line">Response Code:</span><br><span class="line">通过使用异常机制来获取非<span class="number">200</span>响应码</span><br><span class="line">try:</span><br><span class="line">    response = urllib2.urlopen(url)</span><br><span class="line">except urllib2.HTTPError, e:</span><br><span class="line">    <span class="built_in">print</span> e.code</span><br></pre></td></tr></table></figure>
+<p>urllib2允许自定义header，但需要使用urllib.urlencode来编码发送的数据。</p>
+<h2 id="httplib">httplib</h2><p>urllib和urllib2都使用了httplib来处理http/https client连接，与http server通信，在python3中该模块重命名为http.client。<br><figure class="highlight oxygene"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">conn = httplib.HTTPConnection(host, port=None, <span class="keyword">strict</span>=None, timeout=<span class="keyword">default</span>, source_address=None) </span><br><span class="line">*<span class="keyword">strict</span>默认为<span class="keyword">false</span>，为<span class="keyword">True</span>时表示在response中的状态行无法解析时返回BadStatusLine异常；source_address为(host, port)*</span><br><span class="line">conn = httplib.HTTPSConnection(host, port=None, key_file=None, cert_file=None, <span class="keyword">strict</span>=None, timeout=<span class="keyword">default</span>, source_address=None) *使用https连接*</span><br><span class="line"></span><br><span class="line">conn.request(<span class="function"><span class="keyword">method</span>, <span class="title">url</span>, <span class="title">body</span>=<span class="title">None</span>, <span class="title">headers</span>=<span class="comment">&#123;&#125;</span>)</span><br><span class="line">*<span class="title">method</span>通常为'<span class="title">GET</span>','<span class="title">POST</span>','<span class="title">HEAD</span>','<span class="title">PUT</span>','<span class="title">DELETE</span>'；使用<span class="title">POST</span>方式时<span class="title">body</span>为<span class="title">urlencode</span>编码的字符串*</span><br><span class="line"></span><br><span class="line"><span class="title">resp</span> = <span class="title">conn</span>.<span class="title">getresponse</span><span class="params">()</span> *返回<span class="title">HTTPResponse</span>对象*</span><br><span class="line"><span class="title">resp</span>.<span class="title">read</span><span class="params">()</span> *返回<span class="title">response</span> <span class="title">body</span>*</span><br><span class="line"><span class="title">resp</span>.<span class="title">getheaders</span><span class="params">()</span> *以列表的形式返回所有的<span class="title">response</span> <span class="title">header</span>*</span><br><span class="line"><span class="title">resp</span>.<span class="title">getheader</span><span class="params">(name[, <span class="keyword">default</span>])</span> *返回指定的<span class="title">response</span> <span class="title">header</span>，没有则返回<span class="title">default</span>*</span><br><span class="line"><span class="title">resp</span>.<span class="title">status</span>, <span class="title">resp</span>.<span class="title">reason</span> *返回<span class="title">response</span> <span class="title">code</span>和<span class="title">response</span> <span class="title">reason</span>*</span></span><br></pre></td></tr></table></figure></p>
+<p>httplib底层利用socket连接到web server，其提供的HTTPSConnection使用ssl模块的socket wrapper。</p>
+<h2 id="httplib2">httplib2</h2><p>httplib2为第三方库(a comprehensive HTTP client library)，可以在<a href="https://pypi.python.org/pypi/httplib2" title="httplib2_link" target="_blank" rel="external">这里</a>下载。简单的使用示例如下：<br><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">h = httplib2.<span class="type">Http</span>(cache=<span class="string">".cache"</span>, timeout=<span class="type">None</span>)</span><br><span class="line">(resp_headers, content) = h.request(url, <span class="keyword">method</span>=<span class="string">"GET"</span>, body=<span class="type">None</span>, headers=<span class="type">None</span>)</span><br></pre></td></tr></table></figure></p>
+<h2 id="requests">requests</h2><p>urllib, urllib2是Python标准库中提供的module，通常需要结合使用才能完成一些基本功能，而requests提供了更简单的接口让使用HTTP不再那么复杂，它也正如其宣称的那样——HTTP for Humans，可以在<a href="http://requests-docs-cn.readthedocs.org/zh_CN/latest/index.html" title="requests_doc" target="_blank" rel="external">这里</a>查看官方文档，Package下载<a href="https://pypi.python.org/pypi/requests" title="requests_link" target="_blank" rel="external">地址</a>。</p>
+<h3 id="1-_HTTP_Request">1. HTTP Request</h3><figure class="highlight gherkin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">requests.get/post --&gt; Session.request(method, url, ...)</span><br><span class="line">    --&gt; Session.send(req_obj) --&gt; rsp_obj=XXXAdapter.send(req_obj)</span><br><span class="line"><span class="keyword">*</span>首先根据传入的参数构造Request对象，利用不同的Adapter处理不同的Request，返回相应的Response对象<span class="keyword">*</span></span><br><span class="line"></span><br><span class="line">request(method, url, params=None, data=None, headers=None, cookies=None,</span><br><span class="line">  files=None, auth=None, timeout=None, allow_redirects=True, proxies=None,</span><br><span class="line">  hooks=None, stream=None, verify=None, cert=None)</span><br><span class="line">  <span class="keyword">*</span>params: get方法使用的查询字符串的参数，dict类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>data: post方法发送的body中的数据，dict类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>headers: 自定义HTTP头部信息，dict类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>cookies: 发送的Cookie信息，dict或CookieJar对象<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>files: 上传multipart encoded文件，文件类对象dict，如&#123;'file': open(fp,<span class="string">"rb"</span>)&#125;<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>auth: HTTP Auth，tuple类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>timeout: 超时设置秒数，仅用于连接过程，float类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>allow_redirects: 是否允许重定向，默认True<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>proxies: 代理设置，dict类型<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>stream: 是否立即下载响应内容，默认False，请求后会立即下载响应体，设置True时只返回header内容，当访问r.content时才开始下载响应体<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>verify: 是否验证主机SSL证书，默认True<span class="keyword">*</span></span><br><span class="line">  <span class="keyword">*</span>cert: 设置本地client证书<span class="keyword">*</span></span><br><span class="line">所有类型的请求都是通过调用request方法来实现，例如：</span><br><span class="line">r = requests.get(url, <span class="keyword">*</span><span class="keyword">*</span>kwargs) <span class="keyword">*</span>字典中值为None的键不会添加参数<span class="keyword">*</span></span><br><span class="line">r = requests.post(url, data=&#123;&#125;, <span class="keyword">*</span><span class="keyword">*</span>kwargs)</span><br></pre></td></tr></table></figure>
+<h3 id="2-_HTTP_Response">2. HTTP Response</h3><figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">r<span class="class">.text</span>: unicode编码的response内容，会根据response header中的编码来解码，r.encoding属性可以查看当前编码，并可以指定新的编码，再执行该方法将利用新编码来解析</span><br><span class="line">r<span class="class">.content</span>: 对于非文本请求可以用byte的方式返回内容，会自动解码gzip和deflate</span><br><span class="line">r.<span class="function"><span class="title">json</span><span class="params">()</span></span>: 解码json格式的数据，解析失败会抛出异常</span><br><span class="line">r<span class="class">.raw</span>: 存放原始响应内容，需要设置stream为True，操作文本流可以使用下面的方式：</span><br><span class="line">with <span class="function"><span class="title">open</span><span class="params">(filename, <span class="string">'wb'</span>)</span></span> as fd:</span><br><span class="line">    <span class="keyword">for</span> chunk <span class="keyword">in</span> r.<span class="function"><span class="title">iter_content</span><span class="params">(chunk_size)</span></span>:</span><br><span class="line">        fd.<span class="function"><span class="title">write</span><span class="params">(chunk)</span></span></span><br><span class="line">r<span class="class">.status_code</span>: 响应码</span><br><span class="line">r<span class="class">.reason</span>: 返回响应信息</span><br><span class="line">r<span class="class">.headers</span>: 以dict返回响应头</span><br><span class="line">r<span class="class">.url</span>: 最终的url</span><br><span class="line">r<span class="class">.cookies</span>: 以dict返回所有的cookie </span><br><span class="line">r<span class="class">.history</span>: 返回Response list，可以追踪重定向，按时间顺序从老到新排列</span><br><span class="line">r<span class="class">.request</span>: 返回相应的request对象</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Python/">Python</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/python/">python</a>
+  </div>
+
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:github.com/liteway/liteway.github.io">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Python/">Python</a><small>1</small></li>
+  
+    <li><a href="/categories/渗透测试/">渗透测试</a><small>1</small></li>
+  
+    <li><a href="/categories/漏洞分析/">漏洞分析</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">最新文章</h3>
+  <ul class="entry">
+    
+      <li>
+        <a href="/2015/06/20/py_httpclient/">Python HTTP Client Lib</a>
+      </li>
+    
+      <li>
+        <a href="/2015/04/20/ie_cve_2012_4969/">IE UAF漏洞分析之CVE-2012-4969</a>
+      </li>
+    
+      <li>
+        <a href="/2014/11/30/java_exploit_type_confusion/">Watching Type Confusion Attacks from Java Exploits</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/18/java_cve_2012_5076/">Java Exploit分析之CVE-2012-5076</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/14/java_cve_2012_4681/">Java Exploit分析之CVE-2012-4681</a>
+      </li>
+    
+  </ul>
+</div>
+
+
+  
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/IE-CVE/" style="font-size: 10px;">IE CVE</a> <a href="/tags/Java-CVE/" style="font-size: 20px;">Java CVE</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/UAF/" style="font-size: 10px;">UAF</a> <a href="/tags/python/" style="font-size: 10px;">python</a>
+  </div>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2015 liteway
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

