@@ -1308,16 +1308,30 @@ pre .chunk {
 }
 #totop {
   position: fixed;
-  display: none;
+  bottom: 50px;
+  right: 50px;
+  background: #fff;
+  color: #1d9531;
+  text-align: center;
+  width: 60px;
+  height: 60px;
+  padding: 12px;
+  margin: 15px 15px;
+  -webkit-border-radius: 30px;
+  -webkit-border-radius: 30px;
+  border-radius: 30px;
+  font-size: 25px;
+  border: 2px solid #1d9531;
+  -webkit-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  text-decoration: none;
   z-index: 9999;
-  bottom: 5em;
-  right: 1em;
-  cursor: pointer;
-}
-@media tabletmax {
-  #totop {
-    display: none !important;
-  }
+  outline: none;
+  display: none;
 }
 @media screen and (min-width: 768px) {
   #sidebar {
