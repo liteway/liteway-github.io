@@ -1,4 +1,32 @@
 (function($){
+    
+   /*toTop start*/
+  // When to show the scroll link
+  // higher number = scroll link appears further down the page
+  var upperLimit = 1000;
+  // Our scroll link element
+  var scrollElem = $('#totop');
+  // Scroll to top speed
+  var scrollSpeed = 500;
+  // Show and hide the scroll to top link based on scroll position
+  $(window).scroll(function() {
+    var scrollTop = $(document).scrollTop();
+    if (scrollTop > upperLimit) {
+      $(scrollElem).stop().fadeTo(300, 1); // fade back in
+    } else {
+      $(scrollElem).stop().fadeTo(300, 0); // fade out
+    }
+  });
+
+  // Scroll to top animation on click
+  $(scrollElem).click(function() {
+    $('html, body').animate({
+      scrollTop: 0
+    }, scrollSpeed);
+    return false;
+  });
+  /*toTop end*/
+   
   // Search
   var $searchWrap = $('#search-form-wrap'),
     isSearchAnim = false,
@@ -55,10 +83,10 @@
         '<div id="' + id + '" class="article-share-box">',
           '<input class="article-share-input" value="' + url + '">',
           '<div class="article-share-links">',
+            '<a href="http://service.weibo.com/share/share.php?&title=' + encodedUrl + '" class="article-share-sina" target="_blank" title="微博"></a>',
+            '<a href="http://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=' + encodedUrl + '" class="article-share-qq" target="_blank" title="QQ 空间"></a>',
             '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
             '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
-            '<a href="http://pinterest.com/pin/create/button/?url=' + encodedUrl + '" class="article-share-pinterest" target="_blank" title="Pinterest"></a>',
-            '<a href="https://plus.google.com/share?url=' + encodedUrl + '" class="article-share-google" target="_blank" title="Google+"></a>',
           '</div>',
         '</div>'
       ].join('');

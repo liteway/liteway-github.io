@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
+  
   <title><![CDATA[骆驼的乌托邦]]></title>
   
   <link href="/atom.xml" rel="self"/>
-  <link href="https://github.com/liteway/liteway.github.io/"/>
-  <updated>2015-08-08T08:42:28.000Z</updated>
-  <id>https://github.com/liteway/liteway.github.io/</id>
+  <link href="https://github.com/liteway/liteway.github.io//"/>
+  <updated>2015-08-08T15:39:13.000Z</updated>
+  <id>https://github.com/liteway/liteway.github.io//</id>
   
   <author>
     <name><![CDATA[liteway]]></name>
@@ -19,7 +20,7 @@
     <link href="https://github.com/liteway/liteway.github.io/2015/06/20/py_httpclient/"/>
     <id>https://github.com/liteway/liteway.github.io/2015/06/20/py_httpclient/</id>
     <published>2015-06-20T15:00:00.000Z</published>
-    <updated>2015-08-08T08:42:28.000Z</updated>
+    <updated>2015-08-08T15:39:13.000Z</updated>
     <content type="html"><![CDATA[<p>使用Python中的HTTP Client库来爬取网页的访问十分方便，但众多的库可能让使用者感觉杂乱无章，本文总结了Python中几个常见HTTP库的使用方式，以便根据实际需求来选择合适的库。<a id="more"></a></p>
 <h2 id="urllib">urllib</h2><figure class="highlight lasso"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">urllib<span class="built_in">.</span>urlopen(url, <span class="built_in">data</span><span class="subst">=</span><span class="literal">None</span>, proxies<span class="subst">=</span><span class="literal">None</span>) 等于：</span><br><span class="line">    opener <span class="subst">=</span> urllib<span class="built_in">.</span>FancyURLopener(proxies<span class="subst">=</span><span class="literal">None</span>)</span><br><span class="line">    opener<span class="built_in">.</span>open(url, <span class="built_in">data</span><span class="subst">=</span><span class="literal">None</span>)</span><br><span class="line">FancyURLopener继承自URLopener，实现了一些异常处理。</span><br><span class="line">proxies <span class="subst">=</span> &#123;<span class="string">'http'</span>: <span class="string">'http://proxy.example.com:8080/'</span>&#125;</span><br><span class="line"></span><br><span class="line">GET Method:</span><br><span class="line"><span class="keyword">params</span> <span class="subst">=</span> urllib<span class="built_in">.</span>urlencode(&#123;<span class="string">'arg1'</span>: arg1_value, <span class="string">'arg2'</span>: arg2_value&#125;)</span><br><span class="line">f <span class="subst">=</span> urllib<span class="built_in">.</span>urlopen(<span class="string">"http://www.xxx.com/query?%s"</span> <span class="subst">%</span><span class="keyword">params</span>)</span><br><span class="line"></span><br><span class="line">POST Method:</span><br><span class="line"><span class="keyword">params</span> <span class="subst">=</span> urllib<span class="built_in">.</span>urlencode(&#123;<span class="string">'arg1'</span>: arg1_value, <span class="string">'arg2'</span>: arg2_value&#125;)</span><br><span class="line">f <span class="subst">=</span> urllib<span class="built_in">.</span>urlopen(<span class="string">"http://www.xxx.com"</span>, <span class="keyword">params</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">Return</span> Value:</span><br><span class="line">返回值f可以作为类似文件句柄来处理</span><br><span class="line">f<span class="built_in">.</span>read() 获取页面内容</span><br><span class="line">f<span class="built_in">.</span>getcode() 获取HTTP响应码</span><br><span class="line">f<span class="built_in">.</span>getinfo() 获取url的meta信息</span><br><span class="line">f<span class="built_in">.</span>geturl() 获取最终的url，由于urlopen会自动处理重定向，可以与原始url比较来判断是否有Redirect动作</span><br></pre></td></tr></table></figure>
 <p>urllib可以使用urlencode来编码发送的数据，但不允许使用自定义的request header。</p>
